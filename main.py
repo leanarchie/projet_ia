@@ -1,22 +1,52 @@
-import ultralytics
+import cv2
 from ultralytics import YOLO
 
-# Charger le modèle YOLOv8 pré-entraîné
-model = YOLO("yolov8n.pt")
+# Charger le modèle YOLO
+model = YOLO("yolo11n.pt")
 
-# Détection d'objets sur une image exemple
-results = model("image/vase.png")
+# Initialiser la webcam
+cap = cv2.VideoCapture(0)
 
-# Inspecter les résultats et afficher les objets détectés
-detected_objects = []
+if not cap.isOpened():
+    print("Erreur: impossible d'accéder à la webcam")
+    exit()
 
-# Accéder aux résultats de la première image
-result = results[0]  # Résultats pour la première image
+while True:
+    ret, frame = cap.read()
+    
+    if not ret:
+        print("Erreur de lecture de la frame")
+        break
 
-# Parcourir les résultats et ajouter les objets détectés à la liste
-for box, conf, cls in zip(result.boxes.xyxy.tolist(), result.boxes.conf.tolist(), result.boxes.cls.tolist()):
-    class_name = result.names[int(cls)]  # Obtenir le nom de la classe
-    detected_objects.append(class_name)  # Ajouter le nom de l'objet à la liste
+    # Appliquer le modèle YOLO sur la frame capturée
+    results = model(frame)
 
-# Afficher les objets détectés
-print("Objets détectés :", detected_objects)
+    # Accéder aux résultats des boîtes de détection
+    boxes = results[0].boxes
+    names = results[0].names  # Noms des classes
+
+    # Dessiner les boxes et labels sur la frame
+    for box in boxes:
+        # Récupérer les coordonnées des boxes
+        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+        
+        # Dessiner un rectangle sur la frame
+        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+        
+        # Convertir la confiance (box.conf) en valeur flottante
+        confidence = box.conf.item()  # Conversion de Tensor à valeur flottante
+        
+        # Ajouter le label au-dessus de la box avec la confiance
+        label = f"{names[int(box.cls)]}: {confidence:.2f}"  # Le label avec la confiance
+        cv2.putText(frame, label, (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+    # Afficher l'image avec les détections en direct
+    cv2.imshow("Detection Webcam", frame)
+
+    # Quitter la boucle si 'q' est pressé
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Libérer la caméra et fermer toutes les fenêtres
+cap.release()
+cv2.destroyAllWindows()
