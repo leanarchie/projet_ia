@@ -10,14 +10,14 @@ model_ball = YOLO("yolo11l.pt")
 model_pose = YOLO("yolo11n-pose.pt")
 
 # Charger la vidéo d'entrée
-video_input_path = 'input_video2.mp4'
+video_input_path = 'input_video.mp4'
 cap = cv2.VideoCapture(video_input_path)
 
 # Définir les paramètres de la vidéo de sortie
 fps = int(cap.get(cv2.CAP_PROP_FPS))
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-video_output_path = 'output_video2.mp4'
+video_output_path = 'output_video.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(video_output_path, fourcc, fps, (width, height))
 
@@ -83,15 +83,18 @@ while cap.isOpened():
         if (distance_left_hand_ball <= tolerance_dist or distance_right_hand_ball <= tolerance_dist) :
             print("entrée de zone")
             if not stop :
-                print("dribble")
-                dribble += 1
                 stop = True
 
         # Détection de dribble main droite
         if distance_right_hand_ball > tolerance_dist and distance_right_hand_ball > tolerance_dist :
-            if stop :
-                print("sortie de zone")
-                stop = False
+            print("sortie de zone")
+            if y_left_hand>y_basketball+tolerance_dist :
+                stop = True
+            else : 
+                if stop :
+                    print("dribble")
+                    dribble += 1
+                    stop = False
 
 
     cv2.putText(frame, f"Dribbles: {dribble}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
