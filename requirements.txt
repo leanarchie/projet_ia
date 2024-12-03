@@ -1,1 +1,4 @@
 ultralytics
+cv2
+math
+pytorch
