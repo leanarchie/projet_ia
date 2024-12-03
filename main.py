@@ -2,51 +2,49 @@ import cv2
 from ultralytics import YOLO
 
 # Charger le modèle YOLO
-model = YOLO("yolo11n.pt")
+model = YOLO('yolo11n.pt')  # ou votre modèle personnalisé
 
-# Initialiser la webcam
-cap = cv2.VideoCapture(0)
+# Charger la vidéo d'entrée
+video_input_path = 'input_video.mp4'
+cap = cv2.VideoCapture(video_input_path)
 
-if not cap.isOpened():
-    print("Erreur: impossible d'accéder à la webcam")
-    exit()
+# Définir les paramètres de la vidéo de sortie
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+video_output_path = 'output_video.mp4'
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec MP4
+out = cv2.VideoWriter(video_output_path, fourcc, fps, (width, height))
 
-while True:
+while cap.isOpened():
     ret, frame = cap.read()
-    
     if not ret:
-        print("Erreur de lecture de la frame")
         break
+    
+    # Effectuer la détection
+    results = model(frame, verbose=False)
+    
+    # Dessiner les boîtes de détection sur la frame
+    for result in results:
+        for box in result.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            confidence = box.conf[0]
+            class_id = int(box.cls[0])
+            
+            # Si le modèle reconnaît le ballon de basket
+            if model.names[class_id] == 'sports ball':
+                label = f"{model.names[class_id]} {confidence:.2f}"
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                cv2.rectangle(frame,(x1,y1+int((0.5*y1))), (x1+1,y1+int((0.5*y1))),(0, 0, 255), 2)
+                y_basketball=y1
 
-    # Appliquer le modèle YOLO sur la frame capturée
-    results = model(frame)
+    # Écrire la frame dans la vidéo de sortie
+    out.write(frame)
 
-    # Accéder aux résultats des boîtes de détection
-    boxes = results[0].boxes
-    names = results[0].names  # Noms des classes
-
-    # Dessiner les boxes et labels sur la frame
-    for box in boxes:
-        # Récupérer les coordonnées des boxes
-        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-        
-        # Dessiner un rectangle sur la frame
-        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-        
-        # Convertir la confiance (box.conf) en valeur flottante
-        confidence = box.conf.item()  # Conversion de Tensor à valeur flottante
-        
-        # Ajouter le label au-dessus de la box avec la confiance
-        label = f"{names[int(box.cls)]}: {confidence:.2f}"  # Le label avec la confiance
-        cv2.putText(frame, label, (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-    # Afficher l'image avec les détections en direct
-    cv2.imshow("Detection Webcam", frame)
-
-    # Quitter la boucle si 'q' est pressé
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Libérer la caméra et fermer toutes les fenêtres
+# Libérer les ressources
 cap.release()
+out.release()
 cv2.destroyAllWindows()
+
+print("Vidéo traitée et sauvegardée sous :", video_output_path)
